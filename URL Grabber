@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fetch Image URLs from Supabase</title>
+</head>
+<body>
+    <h1>Download Image URLs from Supabase Storage</h1>
+    <button id="download-btn">Download CSV</button>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        // Initialize Supabase client
+        const supabaseUrl = 'https://your-project-url.supabase.co';  // Replace with your project URL
+        const supabaseKey = 'your-public-anon-key';  // Replace with your public anon key
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // Fetch image URLs from Supabase storage bucket
+        async function fetchImageUrls(bucketName) {
+            const { data, error } = await supabase
+                .storage
+                .from(bucketName)
+                .list('', { limit: 1000 });  // Adjust limit as needed
+
+            if (error) {
+                console.error('Error fetching images:', error);
+                return;
+            }
+
+            // Get public URLs for each file
+            const imageUrls = data.map(file => ({
+                fileName: file.name,
+                url: supabase.storage.from(bucketName).getPublicUrl(file.name).publicURL
+            }));
+
+            return imageUrls;
+        }
+
+        // Convert image URLs to CSV format
+        function convertToCSV(imageUrls) {
+            const headers = ['fileName', 'url'];
+            const csvRows = imageUrls.map(row => [row.fileName, row.url].join(','));
+            return [headers.join(','), ...csvRows].join('\n');
+        }
+
+        // Trigger download of CSV file
+        function downloadCSV(csvData, fileName) {
+            const blob = new Blob([csvData], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', fileName);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Handle button click event to generate and download CSV
+        document.getElementById('download-btn').addEventListener('click', async () => {
+            const bucketName = 'your-bucket-name';  // Replace with your bucket name
+            const imageUrls = await fetchImageUrls(bucketName);
+            if (imageUrls) {
+                const csvData = convertToCSV(imageUrls);
+                downloadCSV(csvData, 'image_urls.csv');
+            }
+        });
+    </script>
+</body>
+</html>
